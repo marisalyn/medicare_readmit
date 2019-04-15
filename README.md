@@ -2,6 +2,8 @@
 
 This project conducts a first pass exploratory data analysis (EDA) of excess readmission ratios from the Center for Medicare Services (CMS) Hospital Readmissions Reduction Program (HRRP). The analysis uses publicly available data to explore excess readmission ratios across conditions and hospital characteristics. 
 
+The EDA results can be viewed in your browser [here](https://htmlpreview.github.io/?https://github.com/marisalyn/medicare_readmit/blob/master/EDA.html). 
+
 ## Overview of Files
 
 Data is pulled from APIs, cleaned, and merged in the file `data_cleaning.R`. The exploratory analysis, including additional background information, key results, and possible next steps are in the file `EDA.Rmd` and the output of this file is viewable directly from the `EDA.html` file. Several simple user-defined functions used in the EDA are in the `functions.R` file.
