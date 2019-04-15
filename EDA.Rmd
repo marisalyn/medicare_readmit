@@ -1,0 +1,261 @@
+---
+title: "Exploratory Data Analysis: Hospital Characteristics Associated with Excessive Hospital Readmission"
+author: "Marisa L. Henry"
+date: "4/12/2019"
+output: 
+  html_document:
+    code_folding: hide
+---
+
+## Background 
+
+In October 2012, the Center for Medicare Services (CMS) began implementing the Hospital Readmissions Reduction Program (HRRP). The HRRP financially penalizes hospitals with excess readmissions. CMS characterizes excess readmissions using a ratio of the hospital's number of "predicted" 30-day readmissions for the given condition to the "expected" number of readmissions for the condition based on an average hospital with similar patients. Thus, a readmissions ratio greater than one indicates worse than average performance in readmissions and a readmissions ratio less than one indicates better than average performance. Currently, the HRRP focuses on readmission rates for 6 conditions: heart attack (AMI), heart failure (HF), pneumonia (PN), chronic obstructive pulmonary disease (COPD), elective hip or knee replacement (HIP-KNEE), and coronary artery bypass graft (CABG)
+
+As noted in an [issue brief from the Kaiser Family Foundation](http://files.kff.org/attachment/Issue-Brief-Fewer-Hospital-U-turns-The-Medicare-Hospital-Readmission-Reduction-Program), national readmission rates have consitently fallen since 2012, suggesting hospitals and clinicians "may have adopted new, system-wide interventions soon after the HRRP was enacted". However, the report notes that some types of hospitals are still more likely than others to be penalized under the HRRP. Specifically, the report notes hosepitals that are major teaching hospitals, in rural areas, and serve more low-income beneficiaries are more likely to be penalized and have higher penalities.  
+
+One hypothesis is that certain types of hospitals have fewer resources to successfully implement systemic changes that help reduce readmission rates, and therefore reduce penalizations under the HRRP. If this hypothesis were true, additional policies could be implemented to (1) adjust the calculation of the excess readmissions ratio to account for some of these differences, (2) adjust the HRRP penalties for certain hospital characteristics, and/or (3) support hospitals with fewer resources in pursuing changes to reduce readmission rates. 
+
+Using publicly available data from the CMS on the [HRRP program](https://data.medicare.gov/Hospital-Compare/Hospital-Readmissions-Reduction-Program/9n3s-kdb3) and [general hospital information](https://data.medicare.gov/Hospital-Compare/Hospital-General-Information/xubh-q36u), this analysis continues to explore hospital characteristics associated with higher excess readmission rates overall and for each of the 6 conditions separately. 
+
+## Key Results 
+
+1. Overall and condition specific excess readmission rate averages appear to vary between states. 
+
+2. The variance in excess readmission rates differences between conditions. 
+
+3. Overall and condition specific excess readmission rate distributions appear to vary with hospital ownership for some conditions. However, sample sizes for some ownership types are small, so we should be cautious in drawing inferences from these results. 
+
+4. Presence of emergency services is not associated with a difference in excess readmission rates, except for the elective hip or knee replacement condition.
+
+## Possible Next Steps
+
+1. Expand exploratory analysis using additional/more granular data on hospital characeristics and zipcode level demographics for further exploration. Explore differences by combinations of hospital characteristics. 
+
+2. Explore further the distributional differences in excess readmission ratio by hospital ownership. Where there is sufficient sample size, are the observed differences statistically significant?
+
+3. Explore further the difference in excess readmission ratio by presence of emergency services for the elective hip or knee replacement condition.  
+
+4. If we want to estimate the average causal effect of the HRRP on hospital excess readmission ratio (or some other outcome), we could explore using an interrupted time series analysis.
+
+## Methods 
+
+Primary methods used were visualizations of readmissions mean and standard deviations by state, summary statistics, box plots, density plots, OLS regressions, and t-tests. 
+
+More specifically:
+
+* Summary statistics, boxplots, and density plots were used to assess means and distributions for the excess readmission ratio for each condition by hospital ownership and whether or not the hospital had emergency services. 
+
+* OLS regressions of the excess readmissions ratio on hospital ownership provide insight into which hospital ownership types are associated with higher (or lower) excess readmissions ratios. 
+
+* A pairwise t-test was used to test the null hypothesis that the excess readmission ratio is the same for hospitals with and without emergency services. 
+
+## Results
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+# install.packages("plyr")
+# install.packages("tidyverse")
+# install.packages("RSocrata")
+# install.packages("kableExtra") 
+# install.packages("reshape2")
+# install.packages("stargazer")
+ 
+library(plyr)
+library(tidyverse)
+library(RSocrata)
+library(kableExtra)
+library(reshape2)
+library(stargazer)
+
+# load user defined functions
+source("functions.R")
+
+# load cleaned and merged data files
+source("data_cleaning.R")
+
+# First, note that in the HRRP dataset, each hospital has all 6 of the conditions 
+# listed even if there is no data on readmission ratios the condition for that hospital.
+# I'll create/use a dataset that doesn't include these NA values. 
+# This just helps repeatedly dropping these rows from the data sets in summary
+# stats, visaulizations, etc. 
+dat_full <- dat
+dat <- dat %>% filter(!is.na(readm_ratio))
+```
+
+### Overall Excess Admissions Rates
+
+First, I review some characteristics for the excess readmissions ratio across all conditions. 
+
+#### Measure ID Distributions
+
+The overall mean of the readmission ratio for each condition is roughly equal to 1, as expected. The readmission ratio for each condition is roughly normally distributed, although the conditions have different sample sizes and variance. 
+```{r by_measure_id}
+counts <- dat %>% 
+  group_by(measure_id) %>% 
+  count()
+
+readm_ratio_stats <- dat %>% 
+  select(c(readm_ratio, measure_id)) %>%
+  group_by(measure_id) %>% 
+  summarise_all(c("mean", "median", "sd"), na.rm = TRUE) 
+
+reduce(list(readm_ratio_stats, counts), left_join) %>%
+  kable %>% 
+  kable_styling(bootstrap_options = c("striped", "hover"))
+  
+ggplot(dat, aes(readm_ratio, group = measure_id, color = measure_id)) + 
+  geom_density()
+```
+
+#### Overall excess readmission ratios by state
+
+The overall excress readmission ratios vary by state. This trend is also seen within each each condition, although those plots are not displayed here. As expected, hospitals with lower overall ratings tend to have higher excess admissions ratios. 
+```{r by_state, fig.width = 10, fig.height = 10}
+dat_state_avgs <-
+  dat %>% 
+  group_by(state) %>% 
+  summarise(readm_ratio_avg = mean(readm_ratio), 
+            readm_ratio_sd = sd(readm_ratio), 
+            hospital_rating_mean = mean(as.numeric(hospital_overall_rating), na.rm = T)) %>% 
+  arrange(readm_ratio_avg)
+
+readmit_state_plot(dat_state_avgs)
+```
+
+```{r by_measure_id_state, eval = FALSE}
+dat_measure_id_state_avgs <-
+  dat %>% 
+  group_by(measure_id, state) %>% 
+  summarise(readm_ratio_avg = mean(readm_ratio), 
+            readm_ratio_sd = sd(readm_ratio), 
+            hospital_rating_mean = mean(as.numeric(hospital_overall_rating), na.rm = T))
+
+readmit_state_plot(dat_measure_id_state_avgs %>% filter(measure_id == "AMI"))
+readmit_state_plot(dat_measure_id_state_avgs %>% filter(measure_id == "CABG"))
+readmit_state_plot(dat_measure_id_state_avgs %>% filter(measure_id == "COPD"))
+readmit_state_plot(dat_measure_id_state_avgs %>% filter(measure_id == "HF"))
+readmit_state_plot(dat_measure_id_state_avgs %>% filter(measure_id == "HIP-KNEE"))
+readmit_state_plot(dat_measure_id_state_avgs %>% filter(measure_id == "PN"))
+```
+
+#### Correlations between factors used to compute hospital ratings
+
+There are 7 factors, including the readmission ratio, used to calculate overall hospital ratings. They do not appear to be highly correlated, however, the general hospital information only includes data on if each of these factors is roughly equal to the national average, above the national average, or below the national average. More granular data on these factors might be more highly correlated. 
+```{r correlations, fig.width = 7, fig.height = 4}
+# look at correlations between 7 factors used to compute hospital rating
+# they aren't very highly correlated 
+dat_subset <- dat %>% select(readm_ratio, 
+                             effectiveness_of_care_national_comparison,
+                             efficient_use_of_medical_imaging_national_comparison,
+                             mortality_national_comparison, 
+                             patient_experience_national_comparison, 
+                             safety_of_care_national_comparison, 
+                             timeliness_of_care_national_comparison)
+
+dat_subset[ls(dat_subset)] <- lapply(dat_subset[ls(dat_subset)], as.numeric)
+cormat <- round(cor(dat_subset, use = "pairwise.complete.obs"), 2)
+upper_tri <- get_upper_tri(cormat)
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+
+ggplot(data = melted_cormat, aes(x=Var1, y=Var2, fill=value)) + 
+  geom_tile() + 
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+### By condition
+For each condition, summary stats, box plots, and density charts are created based on hospital ownership and presence of emergency services. 
+
+### AMI
+
+```{r AMI,  fig.width = 7, fig.height = 6}
+dat_AMI <- dat %>% filter(measure_id == "AMI")
+  
+readmit_stats(dat_AMI, quo(hospital_ownership))
+readmit_boxplot(dat_AMI, "hospital_ownership")
+readmit_density(dat_AMI, "hospital_ownership")
+mod <- lm(readm_ratio ~ hospital_ownership, data = dat_AMI)
+stargazer(mod, type = "text")
+readmit_stats(dat_AMI, quo(emergency_services))
+readmit_boxplot(dat_AMI, "emergency_services")
+readmit_density(dat_AMI, "emergency_services")
+readmit_emergency_services_ttest(dat_AMI)
+```
+
+### CABG
+
+```{r CABG,  fig.width = 7, fig.height = 6}
+dat_CABG <- dat %>% filter(measure_id == "CABG")
+  
+readmit_stats(dat_CABG, quo(hospital_ownership))
+readmit_boxplot(dat_CABG, "hospital_ownership")
+readmit_density(dat_CABG %>% filter(), "hospital_ownership")
+mod <- lm(readm_ratio ~ hospital_ownership, data = dat_CABG)
+stargazer(mod, type = "text")
+readmit_stats(dat_CABG, quo(emergency_services))
+readmit_boxplot(dat_CABG,  "emergency_services")
+readmit_density(dat_CABG, "emergency_services")
+readmit_emergency_services_ttest(dat_CABG)
+```
+
+### COPD
+
+```{r COPD,  fig.width = 7, fig.height = 6}
+dat_COPD <- dat %>% filter(measure_id == "COPD")
+  
+readmit_stats(dat_COPD, quo(hospital_ownership))
+readmit_boxplot(dat_COPD, "hospital_ownership")
+readmit_density(dat_COPD, "hospital_ownership")
+mod <- lm(readm_ratio ~ hospital_ownership, data = dat_COPD)
+stargazer(mod, type = "text")
+readmit_stats(dat_COPD, quo(emergency_services))
+readmit_boxplot(dat_COPD, "emergency_services")
+readmit_density(dat_COPD, "emergency_services")
+readmit_emergency_services_ttest(dat_COPD)
+```
+
+### HF
+
+```{r HF,  fig.width = 7, fig.height = 6}
+dat_HF <- dat %>% filter(measure_id == "HF")
+  
+readmit_stats(dat_HF, quo(hospital_ownership))
+readmit_boxplot(dat_HF, "hospital_ownership")
+readmit_density(dat_HF, "hospital_ownership")
+mod <- lm(readm_ratio ~ hospital_ownership, data = dat_HF)
+stargazer(mod, type = "text")
+readmit_stats(dat_HF, quo(emergency_services))
+readmit_boxplot(dat_HF, "emergency_services")
+readmit_density(dat_HF, "emergency_services")
+readmit_emergency_services_ttest(dat_HF)
+```
+### HIP-KNEE
+
+```{r HIP-KNEE,  fig.width = 7, fig.height = 6}
+dat_HIPKNEE <- dat %>% filter(measure_id == "HIP-KNEE")
+  
+readmit_stats(dat_HIPKNEE, quo(hospital_ownership))
+readmit_boxplot(dat_HIPKNEE, "hospital_ownership")
+readmit_density(dat_HIPKNEE, "hospital_ownership")
+mod <- lm(readm_ratio ~ hospital_ownership, data = dat_HIPKNEE)
+stargazer(mod, type = "text")
+readmit_stats(dat_HIPKNEE, quo(emergency_services))
+readmit_boxplot(dat_HIPKNEE, "emergency_services")
+readmit_density(dat_HIPKNEE, "emergency_services")
+readmit_emergency_services_ttest(dat_HIPKNEE)
+```
+
+### PN
+
+```{r PN,  fig.width = 7, fig.height = 6}
+dat_PN <- dat %>% filter(measure_id == "PN")
+  
+readmit_stats(dat_PN, quo(hospital_ownership))
+readmit_boxplot(dat_PN, "hospital_ownership")
+readmit_density(dat_PN, "hospital_ownership")
+mod <- lm(readm_ratio ~ hospital_ownership, data = dat_PN)
+stargazer(mod, type = "text")
+readmit_stats(dat_PN, quo(emergency_services))
+readmit_boxplot(dat_PN, "emergency_services")
+readmit_density(dat_PN, "emergency_services")
+readmit_emergency_services_ttest(dat_PN)
+```
