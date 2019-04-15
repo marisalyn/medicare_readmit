@@ -38,14 +38,22 @@ readmit_density <- function(dataframe, hospital_characteristic) {
   # display density plot of excess readmission ratio 
   # for a dataframe, grouped hospital_characteristic
   
-  ggplot(dataframe) + 
+  dat_subset <- dataframe %>% 
+    group_by_at(hospital_characteristic) %>% 
+    add_tally() %>% 
+    filter(n > 15)
+  
+  ggplot(dat_subset) + 
     ylab("Excess Readmission Ratio") + 
     geom_density(
       aes_string("readm_ratio",
                  group = hospital_characteristic, 
                  color = hospital_characteristic
-      )) 
+      )) +
+    ggtitle("Excess Readmission Ratio Densities")
 }
+
+
 
 get_upper_tri <- function(cormat){
   # used to get upper triangle of correlation matrix
