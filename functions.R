@@ -50,7 +50,7 @@ readmit_density <- function(dataframe, hospital_characteristic) {
                  group = hospital_characteristic, 
                  color = hospital_characteristic
       )) +
-    ggtitle("Excess Readmission Ratio Densities")
+    ggtitle("Excess Readmission Ratio Densities for Groups with n > 15")
 }
 
 

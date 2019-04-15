@@ -23,7 +23,7 @@ Using publicly available data from the CMS on the [HRRP program](https://data.me
 
 2. The variance in excess readmission rates differences between conditions. 
 
-3. Overall and condition specific excess readmission rate distributions appear to vary with hospital ownership for some conditions. However, sample sizes for some ownership types are small, so we should be cautious in drawing inferences from these results. Note that density plots in results below are limited to groups that have n > 15, while box plots include all of the groups, regardless of the group sample size.
+3. Overall and condition specific excess readmission rate distributions appear to vary with hospital ownership for some conditions. However, sample sizes for some ownership types are small, so we should be cautious in drawing inferences from these results. 
 
 4. Presence of emergency services is not associated with a difference in excess readmission rates, except for the elective hip or knee replacement condition.
 
@@ -43,7 +43,7 @@ Primary methods used were visualizations of readmissions mean and standard devia
 
 More specifically:
 
-* Summary statistics, boxplots, and density plots were used to assess means and distributions for the excess readmission ratio for each condition by hospital ownership and whether or not the hospital had emergency services. 
+* Summary statistics, boxplots, and density plots were used to assess means and distributions for the excess readmission ratio for each condition by hospital ownership and whether or not the hospital had emergency services. Note that density plots in results below are limited to groups that have n > 15, while box plots include all of the groups, regardless of the group sample size.
 
 * OLS regressions of the excess readmissions ratio on hospital ownership provide insight into which hospital ownership types are associated with higher (or lower) excess readmissions ratios. 
 
